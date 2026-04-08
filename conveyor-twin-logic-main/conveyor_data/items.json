@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "name": "Item001",
+    "positionX": 50.5,
+    "defective": false,
+    "robotDecision": "PASS"
+  },
+  {
+    "id": 2,
+    "name": "Item002",
+    "positionX": 150.3,
+    "defective": true,
+    "robotDecision": "PICK_AT 180.255"
+  },
+  {
+    "id": 3,
+    "name": "Item003",
+    "positionX": 250.8,
+    "defective": false,
+    "robotDecision": "PASS"
+  },
+  {
+    "id": 4,
+    "name": "Item004",
+    "positionX": 350.2,
+    "defective": true,
+    "robotDecision": "PICK_AT 372.67"
+  },
+  {
+    "id": 5,
+    "name": "Item005",
+    "positionX": 450.5,
+    "defective": false,
+    "robotDecision": "PASS"
+  },
+  {
+    "id": 6,
+    "name": "Item006",
+    "positionX": 550.0,
+    "defective": true,
+    "robotDecision": "PICK_AT 576.75"
+  },
+  {
+    "id": 7,
+    "name": "Item007",
+    "positionX": 650.4,
+    "defective": false,
+    "robotDecision": "PASS"
+  },
+  {
+    "id": 8,
+    "name": "Item008",
+    "positionX": 750.9,
+    "defective": false,
+    "robotDecision": "PASS"
+  }
+]

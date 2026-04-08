@@ -1,0 +1,58 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.11'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.intern.cybernetics'
+version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	// Web və API üçün əsas starter
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// Thymeleaf - HTML templateləri render etmək üçün
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+	// Verilənlər bazası (JPA) və Validasiya
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Monitorinq üçün Actuator
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// Swagger (OpenAPI) - API sənədləşməsi üçün mütləqdir
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
+	// Lombok - Getter/Setter/Constructor üçün
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// PostgreSQL Sürücüsü
+	runtimeOnly 'org.postgresql:postgresql'
+
+	// Test üçün lazım olanlar
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

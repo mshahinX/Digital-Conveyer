@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: Conveyor Twin Logic
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+server:
+  port: 8083

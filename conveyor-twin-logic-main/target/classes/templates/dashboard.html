@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conveyor Digital Twin — Control Center</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#070b14;--surface:#0d1525;--surface2:#131d30;--border:#1a2744;--border2:#243354;--text:#e2e8f0;--text2:#94a3b8;--text3:#475569;--blue:#3b82f6;--cyan:#22d3ee;--green:#10b981;--red:#ef4444;--amber:#f59e0b;--purple:#a855f7;--radius:10px}
+        body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+        ::selection{background:var(--blue);color:#fff}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:var(--surface)}
+        ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+        .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;height:56px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+        .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:#fff;letter-spacing:-.3px}
+        .logo svg{color:var(--cyan)}
+        .nav-tabs{display:flex;gap:4px;margin-left:40px}
+        .nav-tab{padding:8px 16px;border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer;transition:.2s;border:none;background:none}
+        .nav-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+        .nav-tab.active{color:var(--cyan);background:rgba(34,211,238,.08)}
+        .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+        .live-badge{display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:20px;padding:4px 14px;font-size:11px;color:var(--green);font-weight:600}
+        .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite}
+        @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.4)}50%{opacity:.5;box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+        .btn{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.2s;border:1px solid transparent;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+        .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+        .btn-primary:hover{background:#2563eb;transform:translateY(-1px)}
+        .btn-ghost{background:transparent;color:var(--text2);border-color:var(--border)}
+        .btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+
+        .main{padding:24px 28px;max-width:1480px;margin:0 auto}
+        .tab-content{display:none}.tab-content.active{display:block}
+
+        .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px}
+        .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden}
+        .stat::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+        .stat.c-blue::after{background:var(--blue)}.stat.c-green::after{background:var(--green)}.stat.c-red::after{background:var(--red)}.stat.c-amber::after{background:var(--amber)}.stat.c-purple::after{background:var(--purple)}.stat.c-cyan::after{background:var(--cyan)}
+        .stat-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:12px}
+        .stat.c-blue .stat-icon{background:rgba(59,130,246,.12);color:var(--blue)}
+        .stat.c-green .stat-icon{background:rgba(16,185,129,.12);color:var(--green)}
+        .stat.c-red .stat-icon{background:rgba(239,68,68,.12);color:var(--red)}
+        .stat.c-amber .stat-icon{background:rgba(245,158,11,.12);color:var(--amber)}
+        .stat.c-purple .stat-icon{background:rgba(168,85,247,.12);color:var(--purple)}
+        .stat.c-cyan .stat-icon{background:rgba(34,211,238,.12);color:var(--cyan)}
+        .stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+        .stat-val{font-size:28px;font-weight:700;color:#fff;line-height:1}
+        .stat-sub{font-size:11px;color:var(--text3);margin-top:6px}
+
+        .grid-2{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-bottom:18px}
+        .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px}
+
+        .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+        .panel-hdr{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .panel-hdr h3{font-size:13px;font-weight:600;color:var(--text)}
+        .panel-hdr .badge-sm{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
+        .panel-body{padding:16px 18px}
+        .panel-body.np{padding:0}
+
+        #simCanvas{display:block;width:100%;cursor:crosshair}
+
+        .ctrl-row{display:flex;align-items:center;gap:16px;padding:10px 18px;border-top:1px solid var(--border);background:var(--surface2)}
+        .ctrl-row label{font-size:11px;color:var(--text3);white-space:nowrap}
+        .ctrl-row input[type=range]{flex:1;accent-color:var(--cyan);height:4px}
+        .ctrl-val{font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;color:var(--cyan);min-width:45px;text-align:right}
+
+        .gauges{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 18px}
+        .gauge{text-align:center}
+        .gauge canvas{display:block;margin:0 auto 8px}
+        .gauge-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+        .gauge-val{font-size:20px;font-weight:700;color:#fff;margin-top:2px}
+        .gauge-unit{font-size:11px;color:var(--text3);font-weight:400}
+
+        .feed{max-height:300px;overflow-y:auto}
+        .feed-item{display:flex;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(26,39,68,.5);transition:.15s}
+        .feed-item:hover{background:rgba(255,255,255,.02)}
+        .feed-ic{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+        .feed-ic.ok{background:rgba(16,185,129,.12);color:var(--green)}
+        .feed-ic.bad{background:rgba(239,68,68,.12);color:var(--red)}
+        .feed-txt{font-size:12px;color:var(--text2);line-height:1.4}
+        .feed-txt strong{color:var(--text)}
+        .feed-time{font-size:10px;color:var(--text3)}
+
+        .tbl-toolbar{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border)}
+        .search-box{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none;transition:.2s}
+        .search-box:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.1)}
+        .search-box::placeholder{color:var(--text3)}
+        .tbl-wrap{overflow-x:auto}
+        table{width:100%;border-collapse:collapse}
+        th{padding:10px 16px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;background:var(--bg);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+        th:hover{color:var(--text2)}
+        th .sort-arrow{margin-left:4px;opacity:.3;font-size:9px}
+        th.sorted .sort-arrow{opacity:1;color:var(--cyan)}
+        td{padding:10px 16px;font-size:12px;color:var(--text2);border-bottom:1px solid rgba(26,39,68,.4)}
+        tbody tr{transition:.15s}
+        tbody tr:hover{background:rgba(34,211,238,.03)}
+        .mono{font-family:'Cascadia Code','Fira Code',monospace;font-size:11px;color:var(--text3)}
+        .badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase}
+        .badge-ok{background:rgba(16,185,129,.12);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+        .badge-fail{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+
+        .bars{display:flex;align-items:flex-end;gap:6px;height:120px;padding:16px 18px 10px}
+        .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+        .bar-fill{width:100%;border-radius:4px 4px 0 0;transition:height .6s ease;min-height:2px}
+        .bar-label{font-size:9px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+        .toast-container{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+        .toast{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideIn .3s ease;min-width:280px}
+        .toast.success .toast-ic{color:var(--green)}.toast.error .toast-ic{color:var(--red)}.toast.info .toast-ic{color:var(--cyan)}
+        @keyframes slideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .form-group{display:flex;flex-direction:column;gap:4px}
+        .form-group.full{grid-column:1/-1}
+        .form-group label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+        .form-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:12px;outline:none;transition:.2s}
+        .form-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.08)}
+        .form-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;padding:8px 0}
+        .form-check input{accent-color:var(--red);width:16px;height:16px}
+
+        @media(max-width:1100px){.grid-2{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,1fr)}.grid-3{grid-template-columns:1fr 1fr}}
+        @media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.grid-3{grid-template-columns:1fr}.nav-tabs{display:none}.form-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m17.36-5.36l-4.24 4.24M9.88 14.12l-4.24 4.24m0-12.72l4.24 4.24m4.24 4.24l4.24 4.24"/></svg>
+        Conveyor <span style="color:var(--cyan)">Digital Twin</span>
+    </div>
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('overview',this)">Overview</button>
+        <button class="nav-tab" onclick="switchTab('analytics',this)">Analytics</button>
+        <button class="nav-tab" onclick="switchTab('control',this)">Control Panel</button>
+    </div>
+    <div class="topbar-right">
+        <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+        <span style="font-size:11px;color:var(--text3)" id="clock"></span>
+        <a th:href="@{/dashboard}" class="btn btn-ghost">&#8635; Refresh</a>
+    </div>
+</div>
+
+<div class="main">
+
+<div id="tab-overview" class="tab-content active">
+    <div class="stats">
+        <div class="stat c-blue">
+            <div class="stat-icon">&#9641;</div>
+            <div class="stat-label">Total Items</div>
+            <div class="stat-val" id="statTotal" data-count th:data-target="${totalItems}">0</div>
+            <div class="stat-sub">On conveyor line</div>
+        </div>
+        <div class="stat c-green">
+            <div class="stat-icon">&#10003;</div>
+            <div class="stat-label">Healthy</div>
+            <div class="stat-val" id="statHealthy" data-count th:data-target="${healthyCount}">0</div>
+            <div class="stat-sub">Passed QC inspection</div>
+        </div>
+        <div class="stat c-red">
+            <div class="stat-icon">&#9888;</div>
+            <div class="stat-label">Defective</div>
+            <div class="stat-val" id="statDefective" data-count th:data-target="${defectiveCount}">0</div>
+            <div class="stat-sub">Flagged and removed</div>
+        </div>
+        <div class="stat c-amber">
+            <div class="stat-icon">&#9881;</div>
+            <div class="stat-label">Defect Rate</div>
+            <div class="stat-val"><span id="statDefectRate" data-count th:data-target="${defectRate}">0</span>%</div>
+            <div class="stat-sub">Robot picks: <span id="statPicked" th:text="${pickedCount}">0</span></div>
+        </div>
+        <div class="stat c-purple">
+            <div class="stat-icon">&#8644;</div>
+            <div class="stat-label">Avg Position</div>
+            <div class="stat-val" data-count th:data-target="${avgPosition}">0</div>
+            <div class="stat-sub">Mean X coordinate</div>
+        </div>
+        <div class="stat c-cyan">
+            <div class="stat-icon">&#9733;</div>
+            <div class="stat-label">Avg Quality</div>
+            <div class="stat-val" id="statAvgQuality" data-count th:data-target="${avgQualityScore}">0</div>
+            <div class="stat-sub">Score out of 100</div>
+        </div>
+    </div>
+
+    <div class="grid-2">
+        <div>
+            <div class="panel" style="margin-bottom:18px">
+                <div class="panel-hdr">
+                    <h3>Conveyor Belt Simulation</h3>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span class="badge-sm" id="simFps">60 FPS</span>
+                        <span class="badge-sm" id="itemsOnScreen">0 visible</span>
+                    </div>
+                </div>
+                <div class="panel-body np">
+                    <canvas id="simCanvas" height="300"></canvas>
+                </div>
+                <div class="ctrl-row">
+                    <label>Speed</label>
+                    <input type="range" id="speedCtrl" min="0" max="6" step="0.1" value="1.5"/>
+                    <span class="ctrl-val" id="speedVal">1.5x</span>
+                    <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+                    <label>Zoom</label>
+                    <input type="range" id="zoomCtrl" min="0.6" max="2" step="0.05" value="1"/>
+                    <span class="ctrl-val" id="zoomVal">1.0x</span>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr"><h3>Position Distribution</h3></div>
+                <div class="bars" id="posChart"></div>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:18px">
+            <div class="panel">
+                <div class="panel-hdr"><h3>Sensor Readings</h3><span class="badge-sm">Simulated</span></div>
+                <div class="gauges">
+                    <div class="gauge"><canvas id="gTemp" width="100" height="100"></canvas><div class="gauge-label">Temperature</div><div class="gauge-val" id="gTempVal">42<span class="gauge-unit">C</span></div></div>
+                    <div class="gauge"><canvas id="gVib" width="100" height="100"></canvas><div class="gauge-label">Vibration</div><div class="gauge-val" id="gVibVal">0.3<span class="gauge-unit">mm/s</span></div></div>
+                    <div class="gauge"><canvas id="gThroughput" width="100" height="100"></canvas><div class="gauge-label">Throughput</div><div class="gauge-val" id="gThroughputVal">12<span class="gauge-unit">/min</span></div></div>
+                    <div class="gauge"><canvas id="gEfficiency" width="100" height="100"></canvas><div class="gauge-label">Efficiency</div><div class="gauge-val" id="gEffVal">94<span class="gauge-unit">%</span></div></div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr"><h3>Status Breakdown</h3></div>
+                <div style="display:flex;align-items:center;padding:20px 18px;gap:20px">
+                    <canvas id="donutChart" width="120" height="120" style="flex-shrink:0"></canvas>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="width:10px;height:10px;border-radius:3px;background:var(--green)"></div><span style="font-size:12px;color:var(--text2)">Healthy <strong th:text="${healthyCount}">0</strong></span></div>
+                        <div style="display:flex;align-items:center;gap:8px"><div style="width:10px;height:10px;border-radius:3px;background:var(--red)"></div><span style="font-size:12px;color:var(--text2)">Defective <strong th:text="${defectiveCount}">0</strong></span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr"><h3>Robot Activity Log</h3><span class="badge-sm" th:text="${totalItems} + ' events'">0 events</span></div>
+                <div class="feed">
+                    <div th:each="item : ${items}" class="feed-item">
+                        <div th:class="${item.defective} ? 'feed-ic bad' : 'feed-ic ok'" th:text="${item.defective} ? '!' : 'OK'"></div>
+                        <div style="flex:1;min-width:0">
+                            <div class="feed-txt"><strong th:text="${item.name}">Item</strong> -- <span th:text="${item.robotDecision}">PASS</span></div>
+                            <div class="feed-time">Pos X: <span th:text="${item.positionX}">0</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="tbl-toolbar">
+            <input type="text" class="search-box" id="tblSearch" placeholder="Search items by name, ID, or decision..." />
+            <span style="font-size:11px;color:var(--text3);white-space:nowrap" id="tblCount" th:text="'Showing ' + ${totalItems} + ' of ' + ${totalItems}">Showing 0</span>
+        </div>
+        <div class="tbl-wrap">
+            <table id="itemsTable">
+                <thead>
+                <tr>
+                    <th data-sort="num"># <span class="sort-arrow">^</span></th>
+                    <th data-sort="str">ID <span class="sort-arrow">^</span></th>
+                    <th data-sort="str">Name <span class="sort-arrow">^</span></th>
+                    <th data-sort="num">Position X <span class="sort-arrow">^</span></th>
+                    <th data-sort="str">Status <span class="sort-arrow">^</span></th>
+                    <th data-sort="str">Decision <span class="sort-arrow">^</span></th>
+                    <th data-sort="num">Quality <span class="sort-arrow">^</span></th>
+                    <th data-sort="str">Timestamp <span class="sort-arrow">^</span></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item, iter : ${items}">
+                    <td class="mono" th:text="${iter.index + 1}">1</td>
+                    <td class="mono" th:text="'#' + ${item.id}">#1</td>
+                    <td th:text="${item.name}">Item</td>
+                    <td class="mono" th:text="${item.positionX}">0.0</td>
+                    <td><span th:class="${item.defective} ? 'badge badge-fail' : 'badge badge-ok'" th:text="${item.defective} ? 'DEFECTIVE' : 'HEALTHY'"></span></td>
+                    <td class="mono" th:text="${item.robotDecision}">PASS</td>
+                    <td class="mono" th:style="${item.qualityScore >= 75} ? 'color:#10b981;font-weight:600' : (${item.qualityScore} >= 60 ? 'color:#f59e0b;font-weight:600' : (${item.qualityScore} > 0 ? 'color:#ef4444;font-weight:600' : 'color:#475569'))" th:text="${item.qualityScore > 0} ? ${item.qualityScore} : '—'">—</td>
+                    <td class="mono" style="font-size:10px;color:var(--text3)" th:text="${item.timestamp != null} ? ${item.timestamp} : '—'">—</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="tab-analytics" class="tab-content">
+    <div class="grid-3">
+        <div class="panel">
+            <div class="panel-hdr"><h3>Defect Rate Timeline</h3></div>
+            <div class="panel-body"><canvas id="timelineChart" height="200"></canvas></div>
+        </div>
+        <div class="panel">
+            <div class="panel-hdr"><h3>Item Position Heatmap</h3></div>
+            <div class="panel-body"><canvas id="heatmapChart" height="200"></canvas></div>
+        </div>
+        <div class="panel">
+            <div class="panel-hdr"><h3>Robot Decisions</h3></div>
+            <div class="panel-body"><canvas id="decisionsChart" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-hdr"><h3>Position per Item</h3></div>
+        <div class="panel-body"><canvas id="throughputChart" height="160"></canvas></div>
+    </div>
+</div>
+
+<div id="tab-control" class="tab-content">
+    <div class="grid-2">
+        <div class="panel">
+            <div class="panel-hdr"><h3>Add New Item to Conveyor</h3></div>
+            <div class="panel-body">
+                <form id="addItemForm" class="form-grid">
+                    <div class="form-group">
+                        <label>Item Name</label>
+                        <input type="text" class="form-input" id="fName" placeholder="e.g. Item009" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Position X</label>
+                        <input type="number" class="form-input" id="fPosX" placeholder="e.g. 120.5" step="0.1" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Speed (for processing)</label>
+                        <input type="number" class="form-input" id="fSpeed" placeholder="e.g. 35.0" step="0.1" value="35.0"/>
+                    </div>
+                    <div class="form-group">
+                        <label> </label>
+                        <label class="form-check"><input type="checkbox" id="fDefective"/> Mark as defective</label>
+                    </div>
+                    <div class="form-group full" style="margin-top:8px">
+                        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">+ Add and Process Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+            <div class="panel">
+                <div class="panel-hdr"><h3>System Configuration</h3></div>
+                <div class="panel-body">
+                    <div class="form-grid">
+                        <div class="form-group"><label>Belt Speed</label><input type="number" class="form-input" value="35.0" step="0.1"/></div>
+                        <div class="form-group"><label>Robot Reach (mm)</label><input type="number" class="form-input" value="450" step="1"/></div>
+                        <div class="form-group"><label>Detection Threshold</label><input type="number" class="form-input" value="0.85" step="0.01"/></div>
+                        <div class="form-group"><label>Max Throughput (/min)</label><input type="number" class="form-input" value="20" step="1"/></div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-hdr"><h3>API Endpoints</h3></div>
+                <div class="panel-body">
+                    <div style="font-family:monospace;font-size:11px;color:var(--text3);display:flex;flex-direction:column;gap:8px">
+                        <div><span class="badge badge-ok" style="font-size:9px">POST</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor/process</span></div>
+                        <div><span class="badge badge-ok" style="font-size:9px">POST</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor</span></div>
+                        <div><span style="display:inline-block;background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.2);padding:2px 10px;border-radius:10px;font-size:9px;font-weight:600">GET</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor</span></div>
+                        <div><span style="display:inline-block;background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.2);padding:2px 10px;border-radius:10px;font-size:9px;font-weight:600">GET</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor/{id}</span></div>
+                        <div><span style="display:inline-block;background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);padding:2px 10px;border-radius:10px;font-size:9px;font-weight:600">DEL</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor/{id}</span></div>
+                        <div><span style="display:inline-block;background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.2);padding:2px 10px;border-radius:10px;font-size:9px;font-weight:600">GET</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor/stats</span></div>
+                        <div><span style="display:inline-block;background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);padding:2px 10px;border-radius:10px;font-size:9px;font-weight:600">DEL</span> <span style="color:var(--text);margin-left:6px">/api/v1/conveyor</span></div>
+                        <div style="margin-top:4px"><a href="/swagger-ui.html" target="_blank" class="btn btn-ghost" style="font-size:11px">Open Swagger UI</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="panel" style="margin-top:18px">
+        <div class="panel-hdr"><h3>Danger Zone</h3></div>
+        <div class="panel-body" style="display:flex;align-items:center;gap:16px">
+            <span style="font-size:12px;color:var(--text3)">Remove all items from the conveyor and reset the ID counter.</span>
+            <button id="clearAllBtn" class="btn" style="background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);margin-left:auto;white-space:nowrap">&#128465; Clear All Items</button>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script th:inline="javascript">
+const dbItems = /*[[${items}]]*/ [];
+const healthy = /*[[${healthyCount}]]*/ 0;
+const defective = /*[[${defectiveCount}]]*/ 0;
+const total = /*[[${totalItems}]]*/ 0;
+const avgQuality = /*[[${avgQualityScore}]]*/ 0;
+
+setInterval(function(){document.getElementById('clock').textContent=new Date().toLocaleTimeString()},1000);
+
+function switchTab(t,btn){
+    document.querySelectorAll('.tab-content').forEach(function(e){e.classList.remove('active')});
+    document.querySelectorAll('.nav-tab').forEach(function(e){e.classList.remove('active')});
+    document.getElementById('tab-'+t).classList.add('active');
+    btn.classList.add('active');
+    if(t==='analytics')setTimeout(drawAnalytics,100);
+}
+
+document.querySelectorAll('[data-count]').forEach(function(el){
+    var target=parseFloat(el.dataset.target)||0;
+    var isFloat=String(target).indexOf('.')!==-1;
+    var start=performance.now();
+    function tick(now){
+        var p=Math.min((now-start)/1200,1);
+        var ease=1-Math.pow(1-p,3);
+        el.textContent=isFloat?(ease*target).toFixed(1):Math.round(ease*target);
+        if(p<1)requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+});
+
+(function(){
+    var c=document.getElementById('donutChart'),ctx=c.getContext('2d');
+    var cx=60,cy=60,r=48,lw=16,t=healthy+defective||1;
+    var slices=[{v:healthy,c:'#10b981'},{v:defective,c:'#ef4444'}];
+    var sa=-Math.PI/2;
+    slices.forEach(function(s){var sw=(s.v/t)*Math.PI*2;ctx.beginPath();ctx.arc(cx,cy,r,sa,sa+sw);ctx.lineWidth=lw;ctx.lineCap='round';ctx.strokeStyle=s.c;ctx.stroke();sa+=sw});
+    ctx.fillStyle='#fff';ctx.font='bold 22px Segoe UI';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t,cx,cy-6);
+    ctx.font='9px Segoe UI';ctx.fillStyle='#64748b';ctx.fillText('ITEMS',cx,cy+10);
+})();
+
+function drawGauge(id,value,max,color){
+    var c=document.getElementById(id),ctx=c.getContext('2d');
+    var cx=50,cy=55,r=38,lw=8;
+    var startA=0.8*Math.PI,endA=2.2*Math.PI;
+    ctx.beginPath();ctx.arc(cx,cy,r,startA,endA);ctx.lineWidth=lw;ctx.strokeStyle='#1a2744';ctx.lineCap='round';ctx.stroke();
+    var sweep=startA+(endA-startA)*(value/max);
+    ctx.beginPath();ctx.arc(cx,cy,r,startA,sweep);ctx.lineWidth=lw;ctx.strokeStyle=color;ctx.lineCap='round';ctx.stroke();
+}
+
+var sensorT=0;
+function updateSensors(){
+    sensorT+=0.02;
+    var temp=38+8*Math.sin(sensorT*0.7)+Math.random()*2;
+    var vib=0.1+0.4*Math.abs(Math.sin(sensorT*1.3))+Math.random()*0.1;
+    var tp=8+8*Math.abs(Math.sin(sensorT*0.3))+Math.random()*2;
+    var eff=88+8*Math.sin(sensorT*0.5)+Math.random()*2;
+    ['gTemp','gVib','gThroughput','gEfficiency'].forEach(function(id){document.getElementById(id).getContext('2d').clearRect(0,0,100,100)});
+    drawGauge('gTemp',temp,80,'#ef4444');document.getElementById('gTempVal').innerHTML=temp.toFixed(1)+'<span class="gauge-unit"> C</span>';
+    drawGauge('gVib',vib,1,'#f59e0b');document.getElementById('gVibVal').innerHTML=vib.toFixed(2)+'<span class="gauge-unit"> mm/s</span>';
+    drawGauge('gThroughput',tp,25,'#3b82f6');document.getElementById('gThroughputVal').innerHTML=Math.round(tp)+'<span class="gauge-unit"> /min</span>';
+    drawGauge('gEfficiency',eff,100,'#10b981');document.getElementById('gEffVal').innerHTML=eff.toFixed(1)+'<span class="gauge-unit"> %</span>';
+    requestAnimationFrame(updateSensors);
+}
+updateSensors();
+
+(function(){
+    var container=document.getElementById('posChart');
+    var maxPos=Math.max.apply(null,dbItems.map(function(i){return i.positionX}))||1;
+    dbItems.forEach(function(item){
+        var col=document.createElement('div');col.className='bar-col';
+        var fill=document.createElement('div');fill.className='bar-fill';
+        var h=Math.max((item.positionX/maxPos)*100,4);
+        fill.style.height=h+'%';
+        fill.style.background=item.defective?'var(--red)':'var(--green)';
+        fill.title=item.name+': '+item.positionX;
+        var lbl=document.createElement('div');lbl.className='bar-label';lbl.textContent=item.name;
+        col.appendChild(fill);col.appendChild(lbl);container.appendChild(col);
+    });
+})();
+
+document.getElementById('tblSearch').addEventListener('input',function(){
+    var q=this.value.toLowerCase();
+    var rows=document.querySelectorAll('#itemsTable tbody tr');
+    var vis=0;
+    rows.forEach(function(r){var t=r.textContent.toLowerCase();var show=t.indexOf(q)!==-1;r.style.display=show?'':'none';if(show)vis++});
+    document.getElementById('tblCount').textContent='Showing '+vis+' of '+total;
+});
+
+document.querySelectorAll('#itemsTable th[data-sort]').forEach(function(th,i){
+    var asc=true;
+    th.addEventListener('click',function(){
+        var tbody=document.querySelector('#itemsTable tbody');
+        var rows=Array.from(tbody.querySelectorAll('tr'));
+        var type=th.dataset.sort;
+        rows.sort(function(a,b){
+            var va=a.children[i].textContent.replace('#','').trim();
+            var vb=b.children[i].textContent.replace('#','').trim();
+            if(type==='num'){va=parseFloat(va)||0;vb=parseFloat(vb)||0}
+            return asc?(va>vb?1:-1):(va<vb?1:-1);
+        });
+        rows.forEach(function(r){tbody.appendChild(r)});
+        document.querySelectorAll('#itemsTable th').forEach(function(h){h.classList.remove('sorted')});
+        th.classList.add('sorted');
+        asc=!asc;
+    });
+});
+
+function showToast(msg,type){
+    type=type||'info';
+    var c=document.getElementById('toasts');
+    var t=document.createElement('div');t.className='toast '+type;
+    var icons={success:'OK',error:'X',info:'i'};
+    t.innerHTML='<span class="toast-ic" style="font-size:16px;font-weight:bold">'+icons[type]+'</span><span>'+msg+'</span>';
+    c.appendChild(t);setTimeout(function(){t.remove()},4000);
+}
+
+document.getElementById('addItemForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var name=document.getElementById('fName').value.trim();
+    var posX=parseFloat(document.getElementById('fPosX').value);
+    var speed=parseFloat(document.getElementById('fSpeed').value)||35;
+    var def=document.getElementById('fDefective').checked;
+    if(!name){showToast('Item name is required.','error');return;}
+    if(isNaN(posX)||posX<0){showToast('Position X must be a non-negative number.','error');return;}
+    fetch('/api/v1/conveyor/process?speed='+encodeURIComponent(speed),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:name,positionX:posX,defective:def})
+    }).then(function(r){
+        if(!r.ok)return r.json().then(function(e){throw new Error(e.message||'Request failed')});
+        return r.text();
+    }).then(function(decision){
+        var type=decision.startsWith('PICK_AT')?'error':'success';
+        showToast('Item "'+name+'" \u2192 '+decision,type);
+        setTimeout(function(){window.location.reload()},1800);
+    }).catch(function(err){showToast('Error: '+err.message,'error')});
+});
+
+document.getElementById('clearAllBtn').addEventListener('click',function(){
+    if(!confirm('Delete ALL items from the conveyor? This cannot be undone.'))return;
+    fetch('/api/v1/conveyor',{method:'DELETE'})
+        .then(function(r){if(!r.ok)throw new Error('Delete failed: '+r.status);})
+        .then(function(){showToast('All items cleared.','info');setTimeout(function(){window.location.reload()},1500);})
+        .catch(function(err){showToast('Error: '+err.message,'error')});
+});
+
+function refreshStats(){
+    fetch('/api/v1/conveyor/stats')
+        .then(function(r){if(!r.ok)throw new Error();return r.json();})
+        .then(function(s){
+            var map={'statTotal':s.totalItems,'statHealthy':s.healthyCount,'statDefective':s.defectiveCount,'statPicked':s.pickedCount,'statAvgQuality':s.avgQualityScore};
+            Object.keys(map).forEach(function(id){var el=document.getElementById(id);if(el)el.textContent=map[id];});
+            var dr=document.getElementById('statDefectRate');if(dr)dr.textContent=s.defectRate;
+        })
+        .catch(function(){});
+}
+setInterval(refreshStats,30000);
+
+(function(){
+    var canvas=document.getElementById('simCanvas');
+    var ctx=canvas.getContext('2d');
+    var dpr=window.devicePixelRatio||1;
+    var W,H;
+    function resize(){var rect=canvas.getBoundingClientRect();W=rect.width;H=300;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+    resize();window.addEventListener('resize',resize);
+    var offset=0,speed=1.5,zoom=1,robotArmY=20,particles=[];
+    var speedCtrl=document.getElementById('speedCtrl');
+    var zoomCtrl=document.getElementById('zoomCtrl');
+    speedCtrl.addEventListener('input',function(){speed=parseFloat(speedCtrl.value);document.getElementById('speedVal').textContent=speed.toFixed(1)+'x'});
+    zoomCtrl.addEventListener('input',function(){zoom=parseFloat(zoomCtrl.value);document.getElementById('zoomVal').textContent=zoom.toFixed(1)+'x'});
+    var beltY=H-80,beltH=30;
+    var frameCount=0,fps=0,fpsTime=0;
+
+    function addParticles(x,y){for(var i=0;i<12;i++){particles.push({x:x,y:y,vx:(Math.random()-0.5)*4,vy:-Math.random()*5-2,life:1,color:Math.random()>0.5?'#f59e0b':'#ef4444',size:Math.random()*3+1})}}
+
+    function draw(timestamp){
+        frameCount++;
+        if(timestamp-fpsTime>=1000){fps=frameCount;frameCount=0;fpsTime=timestamp;document.getElementById('simFps').textContent=fps+' FPS'}
+        ctx.clearRect(0,0,W,H);
+        ctx.save();
+
+        ctx.globalAlpha=0.04;ctx.strokeStyle='#38bdf8';ctx.lineWidth=1;
+        for(var x=0;x<W;x+=50){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}
+        for(var y=0;y<H;y+=50){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+        ctx.globalAlpha=1;
+
+        ctx.font='10px Segoe UI';ctx.fillStyle='rgba(148,163,184,0.25)';
+        ctx.fillText('SCAN ZONE',60,22);ctx.fillText('ROBOT ZONE',W/2-30,22);ctx.fillText('OUTPUT',W-90,22);
+
+        ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(148,163,184,0.1)';ctx.lineWidth=1;
+        [W*0.3,W*0.65].forEach(function(lx){ctx.beginPath();ctx.moveTo(lx,30);ctx.lineTo(lx,beltY-5);ctx.stroke()});
+        ctx.setLineDash([]);
+
+        var grad=ctx.createLinearGradient(0,beltY,0,beltY+beltH);
+        grad.addColorStop(0,'#334155');grad.addColorStop(0.5,'#1e293b');grad.addColorStop(1,'#0f172a');
+        ctx.fillStyle=grad;
+        ctx.beginPath();ctx.roundRect(10,beltY,W-20,beltH,5);ctx.fill();
+
+        ctx.strokeStyle='rgba(15,23,42,0.7)';ctx.lineWidth=1;
+        for(var si=-1;si<W/20+2;si++){var sx=((si*20+offset*2)%(W+20))-10;if(sx>10&&sx<W-10){ctx.beginPath();ctx.moveTo(sx,beltY+1);ctx.lineTo(sx,beltY+beltH-1);ctx.stroke()}}
+
+        ctx.fillStyle='#475569';
+        ctx.beginPath();ctx.arc(25,beltY+beltH/2,beltH/2+2,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(W-25,beltY+beltH/2,beltH/2+2,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#334155';
+        ctx.beginPath();ctx.arc(25,beltY+beltH/2,beltH/2-3,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(W-25,beltY+beltH/2,beltH/2-3,0,Math.PI*2);ctx.fill();
+
+        var rx=W/2;
+        ctx.fillStyle='#1e293b';ctx.fillRect(rx-50,0,100,10);
+        ctx.fillStyle='#334155';ctx.fillRect(rx-4,10,8,robotArmY);
+        var clawY=10+robotArmY;
+        ctx.fillStyle='#475569';ctx.fillRect(rx-22,clawY,44,7);
+        ctx.fillStyle='#f59e0b';
+        ctx.beginPath();ctx.moveTo(rx-22,clawY+7);ctx.lineTo(rx-18,clawY+18);ctx.lineTo(rx-14,clawY+7);ctx.fill();
+        ctx.beginPath();ctx.moveTo(rx+14,clawY+7);ctx.lineTo(rx+18,clawY+18);ctx.lineTo(rx+22,clawY+7);ctx.fill();
+
+        var robotActive=false;
+
+        ctx.save();ctx.globalAlpha=0.15+0.1*Math.sin(offset*0.05);
+        ctx.fillStyle='#22d3ee';ctx.fillRect(W*0.3-1,30,2,beltY-30);ctx.restore();
+
+        var visible=0;
+        dbItems.forEach(function(item,index){
+            var itemX=((offset*speed*1.5)+(index*180*zoom))%(W+120)-60;
+            var itemY=beltY-32*zoom;
+            var isBad=item.defective===true;
+            var itemW=40*zoom,itemH=28*zoom;
+
+            if(isBad&&itemX>rx-35&&itemX<rx+5){robotActive=true}
+            if(isBad&&itemX>rx){
+                var lift=Math.min((itemX-rx)*1.2,120);
+                itemY-=lift;itemX+=lift*0.3;
+                if(lift>5&&lift<15)addParticles(itemX+itemW/2,itemY+itemH);
+            }
+
+            if(itemX>-60&&itemX<W+60&&itemY>-50){
+                visible++;
+                ctx.fillStyle='rgba(0,0,0,0.25)';ctx.beginPath();ctx.roundRect(itemX+2,itemY+2,itemW,itemH,5*zoom);ctx.fill();
+                var ig=ctx.createLinearGradient(itemX,itemY,itemX,itemY+itemH);
+                if(isBad){ig.addColorStop(0,'#ef4444');ig.addColorStop(1,'#991b1b')}else{ig.addColorStop(0,'#10b981');ig.addColorStop(1,'#065f46')}
+                ctx.fillStyle=ig;ctx.beginPath();ctx.roundRect(itemX,itemY,itemW,itemH,5*zoom);ctx.fill();
+                ctx.fillStyle='rgba(255,255,255,0.12)';ctx.beginPath();ctx.roundRect(itemX+2,itemY+1,itemW-4,itemH/2.5,3*zoom);ctx.fill();
+                ctx.fillStyle='rgba(255,255,255,0.9)';ctx.font='bold '+(9*zoom)+'px Segoe UI';ctx.textAlign='center';
+                ctx.fillText('#'+item.id,itemX+itemW/2,itemY+itemH/2+(zoom>0.8?-2:0));
+                if(zoom>0.8){ctx.font=(7*zoom)+'px Segoe UI';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText(isBad?'DEFECT':'OK',itemX+itemW/2,itemY+itemH/2+9*zoom)}
+            }
+        });
+        document.getElementById('itemsOnScreen').textContent=visible+' visible';
+
+        ctx.beginPath();ctx.arc(rx,5,3,0,Math.PI*2);
+        ctx.fillStyle=robotActive?'#ef4444':'#10b981';ctx.fill();
+        if(robotActive){ctx.beginPath();ctx.arc(rx,5,6,0,Math.PI*2);ctx.fillStyle='rgba(239,68,68,0.2)';ctx.fill()}
+
+        if(robotActive){if(robotArmY<150)robotArmY+=6}else{if(robotArmY>20)robotArmY-=2}
+
+        particles.forEach(function(p){
+            p.x+=p.vx;p.y+=p.vy;p.vy+=0.15;p.life-=0.025;
+            if(p.life>0){ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+        });
+        particles=particles.filter(function(p){return p.life>0});
+
+        ctx.fillStyle='rgba(148,163,184,0.15)';
+        for(var ai=0;ai<6;ai++){var ax=((ai*140+offset*2)%(W-100))+50;ctx.beginPath();ctx.moveTo(ax,beltY+beltH/2-5);ctx.lineTo(ax+8,beltY+beltH/2);ctx.lineTo(ax,beltY+beltH/2+5);ctx.fill()}
+
+        ctx.restore();
+        offset+=speed;
+        requestAnimationFrame(draw);
+    }
+    draw(0);
+})();
+
+function drawAnalytics(){
+    var tc=document.getElementById('timelineChart');if(!tc)return;
+    var tCtx=tc.getContext('2d');
+    var tw=tc.parentElement.offsetWidth-36;tc.width=tw;tc.height=200;
+    var pts=[];for(var i=0;i<20;i++)pts.push(15+Math.random()*30+10*Math.sin(i*0.5));
+    var maxP=Math.max.apply(null,pts);
+    tCtx.strokeStyle='#22d3ee';tCtx.lineWidth=2;tCtx.beginPath();
+    pts.forEach(function(p,i){var x=(i/(pts.length-1))*tw;var y=180-(p/maxP)*160;i===0?tCtx.moveTo(x,y):tCtx.lineTo(x,y)});tCtx.stroke();
+    tCtx.lineTo(tw,180);tCtx.lineTo(0,180);tCtx.closePath();
+    var grd=tCtx.createLinearGradient(0,0,0,200);grd.addColorStop(0,'rgba(34,211,238,0.15)');grd.addColorStop(1,'rgba(34,211,238,0)');
+    tCtx.fillStyle=grd;tCtx.fill();
+
+    var hc=document.getElementById('heatmapChart'),hCtx=hc.getContext('2d');
+    var hw=hc.parentElement.offsetWidth-36;hc.width=hw;hc.height=200;
+    dbItems.forEach(function(item){
+        var x=(item.positionX/800)*hw;var y=40+Math.random()*120;var r=item.defective?30:20;
+        var g=hCtx.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,item.defective?'rgba(239,68,68,0.5)':'rgba(16,185,129,0.4)');g.addColorStop(1,'rgba(0,0,0,0)');
+        hCtx.fillStyle=g;hCtx.fillRect(x-r,y-r,r*2,r*2);
+    });
+
+    var dc=document.getElementById('decisionsChart'),dCtx=dc.getContext('2d');
+    dc.width=dc.parentElement.offsetWidth-36;dc.height=200;
+    var dcx=dc.width/2,rr=70;
+    var passC=dbItems.filter(function(i){return i.robotDecision==='PASS'}).length;
+    var pickC=dbItems.length-passC;var dt=dbItems.length||1;
+    [{v:passC,c:'#10b981'},{v:pickC,c:'#ef4444'}].reduce(function(sa,s){
+        var sw=(s.v/dt)*Math.PI*2;dCtx.beginPath();dCtx.moveTo(dcx,100);dCtx.arc(dcx,100,rr,sa,sa+sw);dCtx.closePath();dCtx.fillStyle=s.c;dCtx.fill();return sa+sw;
+    },-Math.PI/2);
+    dCtx.fillStyle='#0d1525';dCtx.beginPath();dCtx.arc(dcx,100,40,0,Math.PI*2);dCtx.fill();
+    dCtx.fillStyle='#fff';dCtx.font='bold 18px Segoe UI';dCtx.textAlign='center';dCtx.textBaseline='middle';
+    dCtx.fillText(dt,dcx,94);dCtx.font='9px Segoe UI';dCtx.fillStyle='#64748b';dCtx.fillText('DECISIONS',dcx,110);
+
+    var bc=document.getElementById('throughputChart'),bCtx=bc.getContext('2d');
+    var bw=bc.parentElement.offsetWidth-36;bc.width=bw;bc.height=160;
+    var barW=bw/dbItems.length-4;var bMax=Math.max.apply(null,dbItems.map(function(i){return i.positionX}))||1;
+    dbItems.forEach(function(item,i){
+        var x=i*(barW+4)+2;var h=(item.positionX/bMax)*120;
+        bCtx.fillStyle=item.defective?'#ef4444':'#10b981';
+        bCtx.beginPath();bCtx.roundRect(x,140-h,barW,h,3);bCtx.fill();
+        bCtx.fillStyle='#475569';bCtx.font='9px Segoe UI';bCtx.textAlign='center';
+        bCtx.fillText(item.name,x+barW/2,155);
+    });
+}
+</script>
+</body>
+</html>
